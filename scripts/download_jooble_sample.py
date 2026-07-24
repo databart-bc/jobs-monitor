@@ -3,23 +3,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-import requests
 from dotenv import load_dotenv
-
-def fetch_jooble_jobs(
-    api_key: str,
-    base_url: str,
-    payload: dict,
-) -> tuple[dict, int]:
-    response = requests.post(
-        url=f"{base_url}/{api_key}",
-        json=payload,
-        timeout=30,
-    )
-
-    response.raise_for_status()
-
-    return response.json(), response.status_code
+from jobs_monitor.jooble import fetch_jooble_jobs
 
 def save_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
