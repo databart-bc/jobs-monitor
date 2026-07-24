@@ -50,7 +50,9 @@ with output_path.open("w", encoding="utf-8") as file:
     json.dump(data, file, ensure_ascii=False, indent=2)
 
 manifest = {
+    "run_id": run_id,
     "source": "jooble",
+    "ingestion_date": ingestion_date,
     "ingested_at_utc": run_time.isoformat(),
     "request": payload,
     "http_status": response.status_code,
