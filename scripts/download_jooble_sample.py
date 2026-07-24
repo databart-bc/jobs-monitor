@@ -13,7 +13,7 @@ api_key = os.getenv("JOOBLE_API_KEY")
 base_url = os.getenv("JOOBLE_BASE_URL")
 
 if not api_key:
-    raise RuntimeError("Brak JOOBLE_API_KEY w pliku .env")
+    raise RuntimeError("Missing JOOBLE_API_KEY in .env")
 
 payload = {
     "keywords": "Data Engineer",
@@ -31,14 +31,39 @@ response = requests.post(
 response.raise_for_status()
 data = response.json()
 
-output_directory = Path("data/bronze/jooble")
-output_directory.mkdir(parents=True, exist_ok=True)
+run_time = datetime.now(timezone.utc)
 
-timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-output_path = output_directory / f"jooble_{timestamp}.json"
+ingestion_date = run_time.strftime("%Y-%m-%d")
+run_id = run_time.strftime("%Y%m%d_%H%M%S")
+
+run_directory = (
+    Path("data/bronze/jooble")
+    / f"ingestion_date={ingestion_date}"
+    / f"run_id={run_id}"
+)
+
+run_directory.mkdir(parents=True, exist_ok=True)
+
+output_path = run_directory / "jobs.json"
 
 with output_path.open("w", encoding="utf-8") as file:
     json.dump(data, file, ensure_ascii=False, indent=2)
 
-print(f"Pobrano ofert: {len(data.get('jobs', []))}")
-print(f"Zapisano plik: {output_path.resolve()}")
+manifest = {
+    "source": "jooble",
+    "ingested_at_utc": run_time.isoformat(),
+    "request": payload,
+    "http_status": response.status_code,
+    "total_count": data.get("totalCount"),
+    "records_received": len(data.get("jobs", [])),
+    "data_file": "jobs.json",
+}
+
+manifest_path = run_directory / "manifest.json"
+
+with manifest_path.open("w", encoding="utf-8") as file:
+    json.dump(manifest, file, ensure_ascii=False, indent=2)
+
+print(f"Jobs retrieved: {manifest['records_received']}")
+print(f"Data saved to: {output_path.resolve()}")
+print(f"Manifest saved to: {manifest_path.resolve()}")
