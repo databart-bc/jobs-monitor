@@ -6,6 +6,26 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
+def fetch_jooble_jobs(
+    api_key: str,
+    base_url: str,
+    payload: dict,
+) -> tuple[dict, int]:
+    response = requests.post(
+        url=f"{base_url}/{api_key}",
+        json=payload,
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    return response.json(), response.status_code
+
+def save_json(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with path.open("w", encoding="utf-8") as file:
+        json.dump(data, file, ensure_ascii=False, indent=2)
 
 load_dotenv()
 
@@ -22,14 +42,11 @@ payload = {
     "ResultOnPage": 10,
 }
 
-response = requests.post(
-    url=f"{base_url}/{api_key}",
-    json=payload,
-    timeout=30,
+data, http_status = fetch_jooble_jobs(
+    api_key=api_key,
+    base_url=base_url,
+    payload=payload,
 )
-
-response.raise_for_status()
-data = response.json()
 
 run_time = datetime.now(timezone.utc)
 
@@ -46,8 +63,7 @@ run_directory.mkdir(parents=True, exist_ok=True)
 
 output_path = run_directory / "jobs.json"
 
-with output_path.open("w", encoding="utf-8") as file:
-    json.dump(data, file, ensure_ascii=False, indent=2)
+save_json(output_path, data)
 
 manifest = {
     "run_id": run_id,
@@ -55,7 +71,7 @@ manifest = {
     "ingestion_date": ingestion_date,
     "ingested_at_utc": run_time.isoformat(),
     "request": payload,
-    "http_status": response.status_code,
+    "http_status": http_status,
     "total_count": data.get("totalCount"),
     "records_received": len(data.get("jobs", [])),
     "data_file": "jobs.json",
@@ -63,8 +79,7 @@ manifest = {
 
 manifest_path = run_directory / "manifest.json"
 
-with manifest_path.open("w", encoding="utf-8") as file:
-    json.dump(manifest, file, ensure_ascii=False, indent=2)
+save_json(manifest_path, manifest)
 
 print(f"Jobs retrieved: {manifest['records_received']}")
 print(f"Data saved to: {output_path.resolve()}")
